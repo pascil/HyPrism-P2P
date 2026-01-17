@@ -238,6 +238,9 @@ jobs:
           # Build AppImage with ARCH set and extract-and-run for compatibility
           ARCH=x86_64 ./appimagetool --appimage-extract-and-run HyPrism.AppDir HyPrism-x86_64.AppImage
           
+          # Save the binary before cleaning build/bin
+          cp HyPrism.AppDir/usr/bin/HyPrism /tmp/HyPrism-binary
+          
           # Replace binary with AppImage
           rm -rf build/bin/*
           mv HyPrism-x86_64.AppImage build/bin/
@@ -247,6 +250,42 @@ jobs:
           tar -czvf ../../../HyPrism-linux-x86_64.tar.gz HyPrism
           cd ../../..
           mv HyPrism-linux-x86_64.tar.gz build/bin/
+
+      - name: Build Flatpak (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          # Install Flatpak and flatpak-builder
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          
+          # Add Flathub remote
+          sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          
+          # Install required runtime (use --user to avoid permission issues)
+          flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak --user install -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
+          
+          # Prepare all files in the flatpak directory
+          cp /tmp/HyPrism-binary flatpak/HyPrism
+          cp build/appicon.png flatpak/dev.hyprism.HyPrism.png
+          
+          # Build the Flatpak from the flatpak directory
+          cd flatpak
+          flatpak-builder \
+            --user \
+            --force-clean \
+            --repo=repo \
+            --state-dir=.flatpak-builder \
+            builddir \
+            dev.hyprism.HyPrism.json
+          
+          # Create bundle
+          flatpak build-bundle repo HyPrism.flatpak dev.hyprism.HyPrism
+          mv HyPrism.flatpak ../build/bin/
+          
+          # Clean up
+          rm -f HyPrism dev.hyprism.HyPrism.png
+          rm -rf repo builddir .flatpak-builder
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
