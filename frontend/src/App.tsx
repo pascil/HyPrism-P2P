@@ -22,7 +22,6 @@ import {
   // Version Manager
   GetVersionType,
   SetVersionType,
-  GetSelectedVersion,
   SetSelectedVersion,
   GetVersionList,
   IsVersionInstalled,
