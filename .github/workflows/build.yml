@@ -177,6 +177,9 @@ jobs:
           # Copy binary
           cp build/bin/HyPrism HyPrism.AppDir/usr/bin/
           chmod +x HyPrism.AppDir/usr/bin/HyPrism
+
+          # Save a copy for Flatpak packaging before we wipe build/bin
+          cp build/bin/HyPrism /tmp/HyPrism-binary
           
           # Copy icon at 512x512 for high resolution displays
           convert build/appicon.png -resize 512x512 HyPrism.AppDir/usr/share/icons/hicolor/512x512/apps/hyprism.png || {
