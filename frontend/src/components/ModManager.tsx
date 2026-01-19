@@ -1091,13 +1091,17 @@ export const ModManager: React.FC<ModManagerProps> = ({
                     <div>
                       <h4 className="text-white/50 text-xs uppercase mb-2">Screenshots</h4>
                       <div className="relative">
-                        <div className="w-full h-40 rounded-xl overflow-hidden bg-black/30">
+                        <button 
+                          onClick={() => BrowserOpenURL(screenshots[activeScreenshot]?.url)}
+                          className="w-full h-40 rounded-xl overflow-hidden bg-black/30 cursor-pointer hover:ring-2 hover:ring-[#FFA845]/50 transition-all"
+                          title="Click to open full image"
+                        >
                           <img
                             src={screenshots[activeScreenshot]?.url}
                             alt={screenshots[activeScreenshot]?.title || ''}
                             className="w-full h-full object-contain"
                           />
-                        </div>
+                        </button>
                         {screenshots.length > 1 && (
                           <>
                             <button
