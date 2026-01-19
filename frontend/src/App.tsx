@@ -8,7 +8,7 @@ import { UpdateOverlay } from './components/UpdateOverlay';
 import { ErrorModal } from './components/ErrorModal';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 import { ModManager } from './components/ModManager';
-import hytaleLogo from './assets/logo.png';
+import hytaleLogo from './assets/logo.svg';
 
 import {
   DownloadAndLaunch,
