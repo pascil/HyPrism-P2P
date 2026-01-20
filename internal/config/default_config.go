@@ -8,6 +8,7 @@ type Config struct {
 	VersionType       string `toml:"version_type" json:"versionType"`
 	SelectedVersion   int    `toml:"selected_version" json:"selectedVersion"`
 	CustomInstanceDir string `toml:"custom_instance_dir" json:"customInstanceDir"` // Custom path for instances
+	GameInstallPath   string `toml:"game_install_path" json:"gameInstallPath"`     // Path to official Hytale installation
 	AutoUpdateLatest  bool   `toml:"auto_update_latest" json:"autoUpdateLatest"`   // Auto-update latest instance
 }
 
@@ -20,6 +21,7 @@ func Default() *Config {
 		VersionType:       "release",
 		SelectedVersion:   0,  // 0 means use latest
 		CustomInstanceDir: "", // Empty means use default
+		GameInstallPath:   "", // Path to official Hytale installation
 		AutoUpdateLatest:  true,
 	}
 }

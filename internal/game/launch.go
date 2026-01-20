@@ -1,8 +1,6 @@
 package game
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,103 +8,116 @@ import (
 	"runtime"
 	"strings"
 
-	"HyPrism/internal/env"
+	"HyPrism/internal/auth"
 )
 
 // Legacy Launch() removed - use LaunchInstance() instead
 
-// LaunchInstance launches a specific branch/version instance
-func LaunchInstance(playerName string, branch string, version int) error {
-	baseDir := env.GetDefaultAppDir()
+// LaunchInstance launches using official Hytale installation
+func LaunchInstance(gameInstallPath string) error {
+	// Require authentication - no offline mode
+	session, err := auth.GetValidSession()
+	if err != nil || session == nil {
+		return fmt.Errorf("authentication required: please log in with your Hytale account")
+	}
 	
-	// Get instance-specific game directory
-	gameDir := env.GetInstanceGameDir(branch, version)
+	fmt.Printf("Launching with authenticated account: %s (UUID: %s)\n", session.Username, session.UUID)
 	
-	// Verify client exists
-	var clientPath string
-	switch runtime.GOOS {
-	case "darwin":
-		clientPath = filepath.Join(gameDir, "Client", "Hytale.app", "Contents", "MacOS", "HytaleClient")
-	case "windows":
-		clientPath = filepath.Join(gameDir, "Client", "HytaleClient.exe")
-	default:
-		clientPath = filepath.Join(gameDir, "Client", "HytaleClient")
-	}
-
-	if _, err := os.Stat(clientPath); err != nil {
-		return fmt.Errorf("game client not found at %s (instance %s v%d not installed): %w", clientPath, branch, version, err)
-	}
-
-	// Use instance-specific UserData
-	userDataDir := env.GetInstanceUserDataDir(branch, version)
-	_ = os.MkdirAll(userDataDir, 0755)
-
-	// Set up Java path
-	var jrePath string
-	jreDir := filepath.Join(baseDir, "jre")
+	// Use official Hytale installation paths
+	gameDir := filepath.Join(gameInstallPath, "install", "release", "package", "game", "latest")
 	
-	switch runtime.GOOS {
-	case "darwin":
-		javaDir := filepath.Join(baseDir, "java")
-		javaHomeBin := filepath.Join(javaDir, "Contents", "Home", "bin")
-		
-		if _, err := os.Stat(javaHomeBin); err != nil {
-			os.RemoveAll(javaDir)
-			os.MkdirAll(filepath.Join(javaDir, "Contents", "Home"), 0755)
-			os.Symlink(filepath.Join(jreDir, "bin"), filepath.Join(javaDir, "Contents", "Home", "bin"))
-			os.Symlink(filepath.Join(jreDir, "lib"), filepath.Join(javaDir, "Contents", "Home", "lib"))
-		}
-		jrePath = filepath.Join(baseDir, "java", "Contents", "Home", "bin", "java")
-	case "windows":
-		jrePath = filepath.Join(jreDir, "bin", "java.exe")
-	default:
-		jrePath = filepath.Join(jreDir, "bin", "java")
+// Verify client exists
+var clientPath string
+switch runtime.GOOS {
+case "darwin":
+	clientPath = filepath.Join(gameDir, "Client", "Hytale.app", "Contents", "MacOS", "HytaleClient")
+case "windows":
+	clientPath = filepath.Join(gameDir, "Client", "HytaleClient.exe")
+default:
+	clientPath = filepath.Join(gameDir, "Client", "HytaleClient")
+}
+
+if _, err := os.Stat(clientPath); err != nil {
+	return fmt.Errorf("game client not found at %s: %w", clientPath, err)
+}
+
+// UserData under official installation by default
+userDataDir := filepath.Join(gameInstallPath, "UserData")
+_ = os.MkdirAll(userDataDir, 0755)
+
+// Set up Java path from official installation
+var jrePath string
+jreRoot := filepath.Join(gameInstallPath, "install", "release", "package", "jre", "latest")
+
+switch runtime.GOOS {
+case "darwin":
+	jrePath = filepath.Join(jreRoot, "bin", "java")
+case "windows":
+	jrePath = filepath.Join(jreRoot, "bin", "java.exe")
+default:
+	jrePath = filepath.Join(jreRoot, "bin", "java")
+}
+
+if _, err := os.Stat(jrePath); err != nil {
+	return fmt.Errorf("Java not found at %s: %w", jrePath, err)
+}
+
+fmt.Printf("=== LAUNCH ===\n")
+fmt.Printf("Game dir: %s\n", gameDir)
+fmt.Printf("UserData: %s\n", userDataDir)
+fmt.Printf("JRE: %s\n", jrePath)
+fmt.Printf("================\n")
+
+// Prepare auth args
+playerName := session.Username
+uuid := session.UUID
+sessionToken := session.SessionToken
+identityToken := session.IdentityToken
+
+authMode := "authenticated"
+
+var cmd *exec.Cmd
+if runtime.GOOS == "darwin" {
+	appBundlePath := filepath.Join(gameDir, "Client", "Hytale.app")
+	args := []string{
+		"--args",
+		"--app-dir", gameDir,
+		"--user-dir", userDataDir,
+		"--java-exec", jrePath,
+		"--auth-mode", authMode,
+		"--uuid", uuid,
 	}
-
-	if _, err := os.Stat(jrePath); err != nil {
-		return fmt.Errorf("Java not found at %s: %w", jrePath, err)
+	args = append(args, "--name", playerName, "--session-token", sessionToken, "--identity-token", identityToken)
+	cmd = exec.Command("open", appBundlePath)
+	cmd.Args = append(cmd.Args, args...)
+} else if runtime.GOOS == "windows" {
+	// Windows - launch directly without special working directory
+	args := []string{
+		"--app-dir", gameDir,
+		"--user-dir", userDataDir,
+		"--java-exec", jrePath,
+		"--auth-mode", authMode,
+		"--uuid", uuid,
 	}
-
-	fmt.Printf("=== LAUNCH INSTANCE ===\n")
-	fmt.Printf("Branch: %s, Version: %d\n", branch, version)
-	fmt.Printf("Game dir: %s\n", gameDir)
-	fmt.Printf("UserData: %s\n", userDataDir)
-	fmt.Printf("========================\n")
-
-	var cmd *exec.Cmd
-	if runtime.GOOS == "darwin" {
-		appBundlePath := filepath.Join(gameDir, "Client", "Hytale.app")
-		cmd = exec.Command("open", appBundlePath, 
-			"--args",
-			"--app-dir", gameDir,
-			"--user-dir", userDataDir,
-			"--java-exec", jrePath,
-			"--auth-mode", "offline",
-			"--uuid", "00000000-1337-1337-1337-000000000000",
-			"--name", playerName,
-		)
-	} else if runtime.GOOS == "windows" {
-		// Windows - launch directly without special working directory
-		cmd = exec.Command(clientPath,
-			"--app-dir", gameDir,
-			"--user-dir", userDataDir,
-			"--java-exec", jrePath,
-			"--auth-mode", "offline",
-			"--uuid", "00000000-1337-1337-1337-000000000000",
-			"--name", playerName,
-		)
-		cmd.SysProcAttr = getWindowsSysProcAttr()
-	} else {
+	args = append(args, "--name", playerName, "--session-token", sessionToken, "--identity-token", identityToken)
+	cmd = exec.Command(clientPath, args...)
+	cmd.SysProcAttr = getWindowsSysProcAttr()
+} else {
 		// Linux - must set LD_LIBRARY_PATH to find SDL3_image and other native libraries
 		clientDir := filepath.Join(gameDir, "Client")
-		cmd = exec.Command(clientPath,
+		args := []string{
 			"--app-dir", gameDir,
 			"--user-dir", userDataDir,
 			"--java-exec", jrePath,
-			"--auth-mode", "offline",
-			"--uuid", "00000000-1337-1337-1337-000000000000",
-			"--name", playerName,
-		)
+			"--auth-mode", authMode,
+			"--uuid", uuid,
+		}
+		if authMode == "authenticated" && sessionToken != "" {
+			args = append(args, "--name", playerName, "--session-token", sessionToken, "--identity-token", identityToken)
+		} else {
+			args = append(args, "--name", playerName)
+		}
+		cmd = exec.Command(clientPath, args...)
 		// Preserve LD_LIBRARY_PATH with Client directory first
 		existingLdPath := os.Getenv("LD_LIBRARY_PATH")
 		newLdPath := clientDir
@@ -116,7 +127,7 @@ func LaunchInstance(playerName string, branch string, version int) error {
 		cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", newLdPath))
 	}
 	
-	cmd.Dir = baseDir
+cmd.Dir = gameInstallPath
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -218,94 +229,10 @@ func WaitForGameExit() {
 
 // GetGameLogs returns the game log file content
 func GetGameLogs() (string, error) {
-	baseDir := env.GetDefaultAppDir()
-	
-	// Try multiple log paths based on typical Hytale log locations
-	paths := []string{
-		// UserData logs
-		filepath.Join(baseDir, "UserData", "logs", "latest.log"),
-		filepath.Join(baseDir, "UserData", "logs", "game.log"),
-		filepath.Join(baseDir, "UserData", "logs", "client.log"),
-		// Instance logs (latest)
-		filepath.Join(env.GetInstanceGameDir("release", 0), "logs", "latest.log"),
-		filepath.Join(env.GetInstanceGameDir("release", 0), "logs", "game.log"),
-		filepath.Join(env.GetInstanceGameDir("release", 0), "Client", "logs", "latest.log"),
-		// HyPrism specific log
-		filepath.Join(baseDir, "logs", "game.log"),
-	}
-	
-	var allLogs strings.Builder
-	foundAny := false
-	
-	for _, p := range paths {
-		if data, err := os.ReadFile(p); err == nil && len(data) > 0 {
-			foundAny = true
-			allLogs.WriteString(fmt.Sprintf("=== %s ===\n", filepath.Base(p)))
-			
-			content := string(data)
-			// Return last 30KB of each log
-			if len(content) > 30*1024 {
-				content = content[len(content)-30*1024:]
-			}
-			allLogs.WriteString(content)
-			allLogs.WriteString("\n\n")
-		}
-	}
-	
-	if foundAny {
-		return allLogs.String(), nil
-	}
-	
-	// List what directories exist to help debug
-	var debug strings.Builder
-	debug.WriteString("No game logs found. Checking directories:\n\n")
-	
-	checkDirs := []string{
-		filepath.Join(baseDir, "UserData"),
-		filepath.Join(baseDir, "UserData", "logs"),
-		env.GetInstanceDir("release", 0),
-		filepath.Join(env.GetInstanceGameDir("release", 0), "logs"),
-	}
-	
-	for _, dir := range checkDirs {
-		if _, err := os.Stat(dir); err == nil {
-			debug.WriteString(fmt.Sprintf("✓ %s exists\n", dir))
-			// List files in the directory
-			if entries, err := os.ReadDir(dir); err == nil {
-				for _, e := range entries {
-					debug.WriteString(fmt.Sprintf("   - %s\n", e.Name()))
-				}
-			}
-		} else {
-			debug.WriteString(fmt.Sprintf("✗ %s not found\n", dir))
-		}
-	}
-	
-	return debug.String(), nil
+	// Game logs are stored in the official Hytale installation's UserData folder
+	return "Game logs are stored in your official Hytale installation's UserData folder.\nPlease check your Hytale installation directory for logs.", nil
 }
 
-// UUID represents a UUID
-type UUID [16]byte
-
-// OfflineUUID generates an offline UUID from a player name
-func OfflineUUID(name string) UUID {
-	data := "OfflinePlayer:" + name
-	hash := md5.Sum([]byte(data))
-	
-	// Set version to 3 (name-based)
-	hash[6] = (hash[6] & 0x0f) | 0x30
-	// Set variant to 1
-	hash[8] = (hash[8] & 0x3f) | 0x80
-	
-	return UUID(hash)
-}
-
-// String returns the UUID as a string
-func (u UUID) String() string {
-	hex := hex.EncodeToString(u[:])
-	return fmt.Sprintf("%s-%s-%s-%s-%s",
-		hex[0:8], hex[8:12], hex[12:16], hex[16:20], hex[20:32])
-}
 
 // setSDLVideoDriver sets the SDL_VIDEODRIVER environment variable for Linux
 func setSDLVideoDriver(cmd *exec.Cmd) {

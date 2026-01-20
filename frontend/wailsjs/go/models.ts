@@ -37,8 +37,6 @@ export namespace app {
 	export class DependenciesInfo {
 	    javaInstalled: boolean;
 	    javaPath: string;
-	    butlerInstalled: boolean;
-	    butlerPath: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new DependenciesInfo(source);
@@ -48,8 +46,6 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.javaInstalled = source["javaInstalled"];
 	        this.javaPath = source["javaPath"];
-	        this.butlerInstalled = source["butlerInstalled"];
-	        this.butlerPath = source["butlerPath"];
 	    }
 	}
 	export class GameStatusInfo {
@@ -125,37 +121,6 @@ export namespace app {
 		}
 	}
 	
-	export class InstalledVersion {
-	    version: number;
-	    versionType: string;
-	    installDate: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new InstalledVersion(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.version = source["version"];
-	        this.versionType = source["versionType"];
-	        this.installDate = source["installDate"];
-	    }
-	}
-	
-	export class VersionCheckInfo {
-	    available: boolean;
-	    version: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new VersionCheckInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.available = source["available"];
-	        this.version = source["version"];
-	    }
-	}
 
 }
 
@@ -168,6 +133,7 @@ export namespace config {
 	    versionType: string;
 	    selectedVersion: number;
 	    customInstanceDir: string;
+	    gameInstallPath: string;
 	    autoUpdateLatest: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -182,6 +148,7 @@ export namespace config {
 	        this.versionType = source["versionType"];
 	        this.selectedVersion = source["selectedVersion"];
 	        this.customInstanceDir = source["customInstanceDir"];
+	        this.gameInstallPath = source["gameInstallPath"];
 	        this.autoUpdateLatest = source["autoUpdateLatest"];
 	    }
 	}

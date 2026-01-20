@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, X, Copy, RefreshCw } from 'lucide-react';
+import { AlertTriangle, X, Copy, RefreshCw, Info, CheckCircle } from 'lucide-react';
 
 interface ErrorModalProps {
   error: {
@@ -24,6 +24,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({ error, onClose }) => {
 
   const getErrorColor = (type: string) => {
     switch (type) {
+      case 'INFO': return 'text-green-400';
       case 'NETWORK': return 'text-blue-400';
       case 'FILESYSTEM': return 'text-yellow-400';
       case 'VALIDATION': return 'text-orange-400';
@@ -32,6 +33,9 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({ error, onClose }) => {
       default: return 'text-red-400';
     }
   };
+
+  const isInfo = error.type === 'INFO';
+  const isSuccess = error.type === 'SUCCESS';
 
   return (
     <motion.div
@@ -45,17 +49,31 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({ error, onClose }) => {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="w-full max-w-lg bg-[#0d0d0d] rounded-2xl border border-red-500/20 overflow-hidden"
+        className={`w-full max-w-lg bg-[#0d0d0d] rounded-2xl border overflow-hidden ${
+          isInfo || isSuccess ? 'border-green-500/20' : 'border-red-500/20'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-white/10 bg-red-500/5">
+        <div className={`flex items-center justify-between p-5 border-b border-white/10 ${
+          isInfo || isSuccess ? 'bg-green-500/5' : 'bg-red-500/5'
+        }`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
-              <AlertTriangle size={20} className="text-red-400" />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              isInfo || isSuccess ? 'bg-green-500/20' : 'bg-red-500/20'
+            }`}>
+              {isInfo ? (
+                <Info size={20} className="text-green-400" />
+              ) : isSuccess ? (
+                <CheckCircle size={20} className="text-green-400" />
+              ) : (
+                <AlertTriangle size={20} className="text-red-400" />
+              )}
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Error Occurred</h2>
+              <h2 className="text-lg font-bold text-white">
+                {isInfo ? 'Information' : isSuccess ? 'Success' : 'Error Occurred'}
+              </h2>
               <span className={`text-xs font-medium ${getErrorColor(error.type)}`}>
                 {error.type}
               </span>
@@ -109,7 +127,11 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({ error, onClose }) => {
             </button>
             <button
               onClick={onClose}
-              className="px-6 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors font-medium text-sm"
+              className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors ${
+                isInfo || isSuccess 
+                  ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
+                  : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+              }`}
             >
               Dismiss
             </button>
