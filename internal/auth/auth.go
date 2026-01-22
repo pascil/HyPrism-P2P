@@ -56,7 +56,7 @@ type GameSessionResponse struct {
 }
 
 func (s *AuthSession) IsExpired() bool {
-	return time.Now().After(s.ExpiresAt)
+	return time.Now().UTC().After(s.ExpiresAt)
 }
 
 func GetSessionPath() string {
@@ -184,17 +184,23 @@ func GetValidSession() (*AuthSession, error) {
 		fmt.Println("Session expired, attempting to refresh...")
 		newSession, err := RefreshSession(session)
 		if err != nil {
-			// Refresh failed, user needs to login again
 			ClearSession()
 			return nil, fmt.Errorf("session expired and refresh failed - please login again")
 		}
 
-		// Save the new session
 		if err := SaveSession(newSession); err != nil {
 			return nil, err
 		}
 
 		return newSession, nil
+	}
+
+	fmt.Println("Refreshing game session tokens...")
+	if err := createGameSession(session); err != nil {
+		return nil, fmt.Errorf("failed to create game session: %w", err)
+	}
+	if err := SaveSession(session); err != nil {
+		return nil, err
 	}
 
 	return session, nil
